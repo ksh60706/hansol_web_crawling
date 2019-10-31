@@ -1,9 +1,10 @@
 # 식중독지수 API 크롤링
 
-import datetime
+from datetime import datetime, timedelta
 from urllib.request import urlopen
 import requests
 import xml.etree.ElementTree as ET
+from elasticsearch import Elasticsearch
 
 TARGET_URL_ENDPOINT="http://newsky2.kma.go.kr/iros/RetrieveLifeIndexService3/getFsnLifeList?"
 TARGET_URL_SERVICEKEY="ServiceKey="    # 공공데이터포털에서 받아온 API Key
@@ -21,20 +22,50 @@ AREANO = "1100000000"
 TYPE = "xml"
 
 # 현재 날짜 가져오기
-NOW_DATETIME = datetime.datetime.now().strftime("%Y%m%d%H")
+NOW_DATETIME = datetime.now().strftime("%Y%m%d%H")
 #NOW_DATETIME = "2017092812"
+
+
+# 엘라스틱서치에 저장
+def es_insert(content):
+    print("es_insert")
+    try :
+        conn = Elasticsearch(hosts="168.1.1.195", port=9200)
+        conn.index(index="api_kma_fsn_"+NOW_DATETIME, body=content)
+        #conn.index(index="crawling_testtt_words", body=content, id=content["crawling_url"].split("/")[-1].replace(".html", ""))
+        '''
+        if not conn:
+            print("ES연결 완료")
+        else :
+            print(conn)
+        '''
+    except Exception as ex:
+        print("엘라스틱 서치 에러 발생", ex)
+        return None
+
 
 # 가져온 데이터 정제하기
 def clean_data(content):
     clean_content = content
 
-    # 지수에 값이 없는 경우 0 으로 변경
-    if clean_content["fsnToday"] == "":
-        clean_content["fsnToday"] = "0"
-    if clean_content["fsnTomorrow"] == "":
-        clean_content["fsnTomorrow"] = "0"
-    if clean_content["fsnTheDayAfterTomorrow"] == "":
-        clean_content["fsnTheDayAfterTomorrow"] = "0"
+    # 지수에 값이 없는 경우 0 으로 변경, 있으면 숫자형(int)로 변경
+    if content["fsnToday"] == "":
+        clean_content["fsnToday"] = 0
+    else:
+        clean_content["fsnToday"] = int(content["fsnToday"])
+
+    if content["fsnTomorrow"] == "":
+        clean_content["fsnTomorrow"] = 0
+    else:
+        clean_content["fsnTomorrow"] = int(content["fsnTomorrow"])
+
+    if content["fsnTheDayAfterTomorrow"] == "":
+        clean_content["fsnTheDayAfterTomorrow"] = 0
+    else:
+        clean_content["fsnTheDayAfterTomorrow"] = int(content["fsnTheDayAfterTomorrow"])
+
+    # Kibana에서는 날짜 형태가 한국 시간이 아닌 (+9시간) 형태라서 변경해줘야함
+    clean_content["fsnDate"] = datetime.strptime(content["fsnDate"] + "0000", "%Y%m%d%H%M%S") + timedelta(hours=-9)
 
     return clean_content
 
@@ -53,6 +84,7 @@ def get_content_from_url(URL):
         if successYn == "Y":
             print("찾기 성공")
             content = {
+                "apiURL"                 : URL,
                 "fsnCode"                : note.findtext("Body/IndexModel/code"),
                 "fsnAreaNo"              : note.findtext("Body/IndexModel/areaNo"),
                 "fsnDate"                : note.findtext("Body/IndexModel/date"),
@@ -85,6 +117,9 @@ def main():
     print(content)
 
     # 데이터베이스 저장
+
+    # 엘라스틱서치에 저장
+    es_insert(content)
 
 
 if __name__ == "__main__":
