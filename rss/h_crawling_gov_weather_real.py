@@ -30,6 +30,11 @@ def get_content_from_url(URL):
             '''
             if data.findtext("day") == "0":
 
+            elif data.findtext("day") == "1":
+
+            else :
+
+
             content = {
                 "rssURL" : URL,
                 "realHour" : data.findtext("hour"),
