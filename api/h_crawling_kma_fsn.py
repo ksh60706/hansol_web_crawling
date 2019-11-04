@@ -49,6 +49,24 @@ def clean_data(content):
     clean_content = content
 
     # 지수에 값이 없는 경우 0 으로 변경, 있으면 숫자형(int)로 변경
+    arr_fsn = {"fsnToday","fsnTomorrow","fsnTheDayAfterTomorrow"}
+
+    for fsn in arr_fsn:
+        if content[fsn] == "":
+            clean_content[fsn] = 0
+        else :
+            clean_content[fsn] = int(content[fsn])
+
+        if clean_content[fsn] < 55:
+            clean_content[fsn + "_kor"] = "관심"
+        elif clean_content[fsn] >= 55 and clean_content[fsn] < 71:
+            clean_content[fsn + "_kor"] = "주의"
+        elif clean_content[fsn] >= 71 and clean_content[fsn] < 86:
+            clean_content[fsn + "_kor"] = "경고"
+        else :
+            clean_content[fsn + "_kor"] = "위험"
+
+    '''
     if content["fsnToday"] == "":
         clean_content["fsnToday"] = 0
     else:
@@ -63,10 +81,12 @@ def clean_data(content):
         clean_content["fsnTheDayAfterTomorrow"] = 0
     else:
         clean_content["fsnTheDayAfterTomorrow"] = int(content["fsnTheDayAfterTomorrow"])
+    '''
+
 
     # Kibana에서는 날짜 형태가 한국 시간이 아닌 (+9시간) 형태라서 변경해줘야함
     clean_content["fsnDate"] = datetime.strptime(content["fsnDate"] + "0000", "%Y%m%d%H%M%S") + timedelta(hours=-9)
-
+    #print(clean_content)
     return clean_content
 
 # API 데이터 가져오기
@@ -82,15 +102,18 @@ def get_content_from_url(URL):
         successYn = note.findtext("Header/SuccessYN")
 
         if successYn == "Y":
-            print("찾기 성공")
+            #print("찾기 성공")
             content = {
                 "apiURL"                 : URL,
                 "fsnCode"                : note.findtext("Body/IndexModel/code"),
                 "fsnAreaNo"              : note.findtext("Body/IndexModel/areaNo"),
                 "fsnDate"                : note.findtext("Body/IndexModel/date"),
                 "fsnToday"               : note.findtext("Body/IndexModel/today"),
+                "fsnToday_kor"           : "",
                 "fsnTomorrow"            : note.findtext("Body/IndexModel/tomorrow"),
-                "fsnTheDayAfterTomorrow" : note.findtext("Body/IndexModel/theDayAfterTomorrow")
+                "fsnTomorrow_kor"        : "",
+                "fsnTheDayAfterTomorrow" : note.findtext("Body/IndexModel/theDayAfterTomorrow"),
+                "fsnTheDayAfterTomorrow_kor": ""
             }
             return content
 
@@ -107,7 +130,7 @@ def get_content_from_url(URL):
 # 메인 함수
 def main():
     # API 데이터 가져오기
-    print(NOW_DATETIME)
+    #print(NOW_DATETIME)
     TARGET_URL = TARGET_URL_ENDPOINT + TARGET_URL_SERVICEKEY + SERVICEKEY + TARGET_URL_AREANO + AREANO + TARGET_URL_TYPE + TYPE + TARGET_URL_TIME + NOW_DATETIME
     url_content = get_content_from_url(TARGET_URL)
     #print(url_content)
