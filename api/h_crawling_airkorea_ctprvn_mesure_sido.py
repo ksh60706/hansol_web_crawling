@@ -38,7 +38,7 @@ def es_insert(content):
     print("es_insert")
     try :
         conn = Elasticsearch(hosts="168.1.1.195", port=9200)
-        conn.index(index="api_air_ctprvn_real_"+NOW_DATETIME, body=content)
+        conn.index(index="api_air_ctprvn_real", body=content)
         #conn.index(index="crawling_testtt_words", body=content, id=content["crawling_url"].split("/")[-1].replace(".html", ""))
 
     except Exception as ex:
